@@ -27,6 +27,10 @@ I also combined my vehicle tracking with my [previous project](https://github.co
 [hog-sub]: ./examples/hog-sub.jpg
 [boxed-1]: ./examples/boxed-1.png
 [boxed-2]: ./examples/boxed-2.png
+[car]: ./examples/53.png
+[spatial]: ./examples/spatial_53.png
+[histograms]: ./examples/histograms.png
+[heatmap]: ./examples/heatmap.png
 [video1]: ./project_video.mp4
 
 ## Feature Extraction
@@ -39,7 +43,7 @@ Example "car" and "not car" images are below.
 
 ![Car and not-car][image1]
 
-I began by trying out a variety of classifiers using a variety of colorspaces. I used a [LinearSVC model](http://scikit-learn.org/stable/modules/generated/sklearn.svm.LinearSVC.html#sklearn.svm.LinearSVC), a [SVC model with an rbf kernel](http://scikit-learn.org/stable/modules/generated/sklearn.svm.SVC.html#sklearn.svm.SVC), and a [Stochastic Gradient Descent SVM](http://scikit-learn.org/stable/modules/generated/sklearn.linear_model.SGDClassifier.html#sklearn.linear_model.SGDClassifier) on the data. The RBF-kernel classifier consistently had greater than 99% accuracy on the test set, and was trainable on my machine, so I kept it for performance. The LinearSVC model would probably have been somewhat faster, at a cost in classification accuracy. The SGD model performed horribly for me: my accuracy consistently stayed at around 50% as I added epochs. I was hopeful that I could try it with data augmentation (which I experimented with), but I discovered quickly that an SVM does not have strong [translation invariance](https://en.wikipedia.org/wiki/Translational_symmetry) properties in the way a deep convolutional network does.
+I began by trying out a variety of classifiers using a variety of colorspaces. I used a [LinearSVC model](http://scikit-learn.org/stable/modules/generated/sklearn.svm.LinearSVC.html#sklearn.svm.LinearSVC), a [SVC model with an RBF kernel](http://scikit-learn.org/stable/modules/generated/sklearn.svm.SVC.html#sklearn.svm.SVC), and a [Stochastic Gradient Descent SVM](http://scikit-learn.org/stable/modules/generated/sklearn.linear_model.SGDClassifier.html#sklearn.linear_model.SGDClassifier) on the data. The RBF-kernel classifier consistently had greater than 99% accuracy on the test set, and was trainable on my machine, so I kept it for performance. The LinearSVC model would probably have been somewhat faster, at a cost in classification accuracy. The SGD model performed horribly for me: my accuracy consistently stayed at around 50% as I added epochs. I was hopeful that I could try it with data augmentation (which I experimented with), but I discovered quickly that an SVM does not have strong [translation invariance](https://en.wikipedia.org/wiki/Translational_symmetry) properties in the way a deep convolutional network does.
 
 I also compared performance of various color spaces. The YCrCb space gave me the highest classification accuracy, around 99.5% on my test set. I suspect that the performance is related to the fact that the "Y" channel is basically grayscale, and so is insensitive to color differences betwen vehicles.
 
@@ -47,7 +51,7 @@ I also compared performance of various color spaces. The YCrCb space gave me the
 ### Histogram of Oriented Gradients (HOG)
 
 #### Extraction
-Check out the hog_features method for details. Since most of the work is done by sklearn, there isn't a lot of code. I extract HOG features from the supplied list of channels (I used all three), flatten them, and concatenate them together.
+Check out the `hog_features` method for details. Since most of the work is done by sklearn, there isn't a lot of code. I extract HOG features from the supplied list of channels (I used all three), flatten them, and concatenate them together.
 
 The more interesting code is the sliding window implementation for the HOG features, detailed more below.
 
@@ -63,9 +67,16 @@ I experimented with HOG orientation count, pixels per cell, and cells per block,
 
 "Spatial features" is a fancy way to say "low-resolution image." I downscale the 64x64 image to 16x16, leaving only the general suggestion of the shape. This blurring generalizes to "carness". I then flatten the resulting image, resulting in conceptually something more like a silhouette of a mountain range than a 2d grid of pixels.
 
+An example 64x64 image and downsize 16x16 image are below. The 16x16 image preserves the general shape of the vehicle.
+
+![Example car][car]
+![Downsized car][spatial]
+
 ### Histogram of colors
 
-I also extract a histogram of the colors in the image, with 32 bins. The idea is that cars will have a color distribution dissimilar from the background.
+I also extract a histogram of the colors in the image, with 32 bins. The idea is that cars will have a color distribution dissimilar from the background. An example color distribution for a vehicle in RGB is below.
+
+![Color histograms][histograms]
 
 ### Combined features
 
@@ -78,7 +89,7 @@ As mentioned above, I tried a variety of classifiers from sklearn and a variety 
 I found that the SVM classifier uses a lot of memory, so once I had the basics working I set it up on an EC2 spot instance to save time. The training went about 3x faster on a c4.2xlarge instance than on my old 2010 MacBook Pro.
 
 
-###Sliding Window Search
+### Sliding Window Search
 
 The `find_cars` method started from Udacity sample code, but was customized to use the feature extractor class I built. It samples from a subsection of the image (from vertical pixel counts 400 to 656 of 720) and splits that section into an 8x8 pixel grid. Since HOG features are calculated in a grid, calculating them over the entire region and then subsampling is far more efficient than recalculating them for each subsection. The image is also scaled down for (much) faster performance. Switching from 2/3 scale to 1/2 scale cut the processing time in half, but lost too much information, so I stayed at 2/3 scale.
 
@@ -103,7 +114,11 @@ Several example images with bounding boxes drawn by my classifier are in the not
 My implementation on video added a couple of features, implemented in the `MovieProcessor` class.
 
 #### Heatmap
-In order to make sense of overlapping bounding boxes, I use a heatmap of the overlapping areas, find contiguous areas with the [label feature from scipy](https://docs.scipy.org/doc/scipy-0.16.0/reference/generated/scipy.ndimage.measurements.label.html), and draw bounding boxes around the resulting areas. To leave out outlying data, I discard any data in the heatmap that does not have more than one overlapping box. Importantly, I keep the heatmap between frames, to allow a strengthening signal for a persistent object. To allow for change over time, however, I needed the second feature:
+In order to make sense of overlapping bounding boxes, I use a heatmap of the overlapping areas, find contiguous areas with the [label feature from scipy](https://docs.scipy.org/doc/scipy-0.16.0/reference/generated/scipy.ndimage.measurements.label.html), and draw bounding boxes around the resulting areas.
+
+![Example heatmap and bounding boxes][heatmap]
+
+To leave out outlying data, I discard any data in the heatmap that does not have more than one overlapping box. Importantly, I keep the heatmap between frames, to allow a strengthening signal for a persistent object. To allow for change over time, however, I needed the second feature:
 
 #### Decay
 I decay the heatmap by 20% between each frame of video. I played around with the decay parameter a bit, and found that keeping 80% of the signal kept my boxes persistent without causing a "dragging" effect.
