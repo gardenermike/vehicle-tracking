@@ -126,7 +126,7 @@ I decay the heatmap by 20% between each frame of video. I played around with the
 
 ### Results
 
-The resulting video is [in the repository](https://github.com/gardenermike/vehicle-tracking/blob/master/project_video.mp4) and also on [YouTube](https://youtu.be/8UL3n6VFNsc).
+The resulting video is [in the repository](https://github.com/gardenermike/vehicle-tracking/blob/master/project_output.mp4) and also on [YouTube](https://youtu.be/8UL3n6VFNsc).
 
 I also combined the vehicle tracking with the lane finding from a previous project to build a [combined video](https://github.com/gardenermike/vehicle-tracking/blob/master/project_video_output.mp4). ([YouTube link](https://youtu.be/qDGdRYXy1c0)) The combined video has a very interesting characteristic. As part of the lane finding pipeline, I corrected for camera distortion in the images. As mentioned before, the SVM classifier is not at all good with translation invariance, so correcting for camera distortion allowed for better vehicle detection. The difference is striking for the oncoming traffic. Numerous oncoming vehicles are tracked in the undistorted frames that were entirely missed without image correction.
 
